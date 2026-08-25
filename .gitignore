@@ -1,0 +1,41 @@
+# Credentials and sensitive outputs
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.hash
+*.pot
+*.potfile
+*wordlist*.txt
+captured_hash*.txt
+responder.log
+Responder-Session.log
+
+# Raw evidence exports (review/sanitize before intentionally adding)
+*.pcap
+*.pcapng
+*.evtx
+eve.json
+fast.log
+stats.log
+suricata.log
+
+# Virtual machines and disk images
+*.vdi
+*.vmdk
+*.vhd
+*.vhdx
+*.ova
+*.ovf
+*.sav
+
+# Local tooling / editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.tmp
+*.bak
