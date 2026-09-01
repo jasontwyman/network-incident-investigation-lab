@@ -21,7 +21,7 @@ Install Sysmon for process/network telemetry and Npcap for packet capture. GUI i
 
 ### Suricata on Windows
 
-Suricata 8.0.6 was configured with ET Open rules. The manually downloaded rule bundle required its configured filenames to match the extracted files. Rules requiring unavailable `libmagic` support were disabled. When editing rule files in Windows PowerShell 5.1, write UTF-8 without a byte-order mark.
+Operator notes record Suricata 8.0.6 configured with ET Open rules. The manually downloaded rule bundle required its configured filenames to match the extracted files. Rules requiring unavailable `libmagic` support were disabled. When editing rule files in Windows PowerShell 5.1, write UTF-8 without a byte-order mark. No configuration snapshot, rule bundle, or runtime log is included, so these setup details are not independently verifiable from the repository.
 
 Use the Npcap device path rather than a friendly adapter name:
 
@@ -62,9 +62,9 @@ be assessed separately.
 
 ### 3.4 HTTP path and required user action
 
-The working lab path used Responder's HTTP listener. A browser on the DC01 console navigated to the synthetic hostname. Edge displayed a native Windows Security prompt rather than silently authenticating. Operator notes attribute the redirection to name-resolution poisoning; without the raw Responder log or PCAP, the repository does not independently verify that causal step.
+According to operator notes, the working lab path used Responder's HTTP listener. A browser on the DC01 console displayed the synthetic HTTP hostname and a native Windows Security prompt rather than silently authenticating. Operator notes attribute the redirection to name-resolution poisoning; without the raw Responder log or PCAP, the repository does not independently verify that causal step or determine whether LLMNR, NBT-NS, DNS, or another resolution path supplied the destination.
 
-According to the operator notes, a lab user then **manually entered and submitted the domain Administrator credential**. [`08_dc01_username_redacted_password_not_shown.png`](../evidence/screenshots/08_dc01_username_redacted_password_not_shown.png) shows the prompt with the username field redacted and the password field empty; it does not prove password entry or submission. The notes attribute browser redirection to LLMNR poisoning, but the repository does not independently verify that step and poisoning alone would not disclose the credential. The reported contributing chain was:
+According to the operator notes, a lab user then **manually entered and submitted the domain Administrator credential**. [`08_dc01_username_redacted_password_not_shown.png`](../evidence/screenshots/08_dc01_username_redacted_password_not_shown.png) shows the prompt with the username field redacted and the password field empty; it does not prove password entry or submission. The notes attribute browser redirection to LLMNR poisoning, but the repository does not independently verify that step, distinguish LLMNR from NBT-NS or another lookup path, or show that poisoning alone disclosed a credential. The reported contributing chain was:
 
 1. fallback name resolution could be poisoned;
 2. the destination offered NTLM over HTTP;
@@ -72,7 +72,7 @@ According to the operator notes, a lab user then **manually entered and submitte
 4. operator notes state that the user manually submitted a privileged credential; and
 5. the lab password was present in a prepared candidate list.
 
-Responder subsequently recorded:
+Operator notes transcribe the following Responder output. The public screenshot visibly retains the HTTP client and username lines, but the challenge-response line/value is inside an opaque redaction and the raw session log is absent:
 
 ```text
 [HTTP] NetNTLMv2 Client             : 10.10.10.10
@@ -84,13 +84,13 @@ This is a **NetNTLMv2 challenge-response**, not an NT password hash or a plainte
 
 ### 3.5 Offline test
 
-John the Ripper's `netntlmv2` input format was used against a small, prepared lab wordlist. The exact response, candidate list, recovered plaintext, and commands containing sensitive file content are omitted. The screenshot retains nonsecret proof that John loaded one NetNTLMv2 input and completed the run; the result is redacted.
+John the Ripper's `netntlmv2` input format was used against a small, prepared lab wordlist. The exact response, candidate list, recovered plaintext, and commands containing sensitive file content are omitted. The screenshot proves only that John loaded one NetNTLMv2 input; all result/status lines are redacted. Successful recovery is therefore an operator-noted result, not independently verifiable from the public derivative.
 
-Hashcat was attempted first, but the VM lacked a usable OpenCL runtime. The screenshot preserves that troubleshooting context after redaction.
+Hashcat was attempted first. The screenshot shows version 7.1.2, use of mode 5600 and `--force`, and `Initializing backend runtimes`; it does not show a GPU/OpenCL error or completed attack. A separate visible package-manager message says `pocl-opencl-icd` had no installation candidate, but that does not by itself establish the available compute backends or the cause of the stalled attempt.
 
 ### 3.6 Credential reuse and remote-service hypothesis
 
-An Impacket WMIExec-style attempt appeared to hang and was abandoned. An Impacket PsExec-style attempt then reported share access, file upload, and Service Control Manager operations. **Credential-bearing command lines are intentionally omitted.**
+Operator notes identify the first redacted Impacket invocation as WMIExec-style and say it appeared to hang and was abandoned; the screenshot itself shows only Impacket output and `SMBv3.0 dialect used`, so it cannot verify the client identity or a hang. Notes identify the second invocation as PsExec-style; later attacker-side output reports share access, file upload, and Service Control Manager operations. **Credential-bearing command lines are intentionally omitted.**
 
 The attacker-side output is consistent with attempted service creation/start, but is not sufficient target-side confirmation. The lab notes/transcribed Event 4624 Logon Type 3 report successful network authentication, pending verification against the raw event export. Even if verified, do not use that event as proof of remote code execution.
 

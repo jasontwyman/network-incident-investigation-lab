@@ -6,11 +6,11 @@ A hands-on incident-response exercise conducted in an **authorized, isolated Vir
 
 The lab procedure covered:
 
-**Nmap reconnaissance → operator-noted Responder/fallback-name-resolution path → operator-noted manual credential submission to an attacker-controlled HTTP authentication prompt → capture of a NetNTLMv2 challenge-response → offline password recovery in the lab → attempted remote administration with Impacket/PsExec-style tooling.**
+**Nmap reconnaissance → operator-noted Responder/fallback-name-resolution path → operator-noted manual credential submission to an attacker-controlled HTTP authentication prompt → Responder output associated with a redacted NetNTLMv2 challenge-response → operator-noted offline password recovery in the lab → attempted remote administration with Impacket tooling.**
 
 The available artifacts support different confidence levels. All visible host, user, and domain names—including `DC01`, `kali`, `mowgli0242`, `JTWYMAN`, `Administrator`, `jtwyman.test`, and the poisoned host label—are synthetic identifiers used only in the isolated lab; they do not identify production systems or accounts.
 
-- Responder screenshots show the attempted listener and later challenge-response capture, with credential material redacted. Operator notes attribute redirection to LLMNR poisoning, but no raw log or PCAP independently verifies that causal step.
+- Responder screenshots show the attempted listener and later HTTP NetNTLMv2 client/username output, with the challenge-response region redacted. Operator notes attribute redirection to LLMNR poisoning, but no raw log or PCAP independently verifies poisoning or establishes whether LLMNR, NBT-NS, DNS, or another resolution path supplied the destination.
 - Attacker-console screenshots show an Impacket PsExec-style client requesting shares and reporting service-manager actions.
 - Lab notes and a transcribed Windows Security Event 4624, Logon Type 3, report successful network authentication from the lab attacker IP, pending verification against the raw event export; even a verified Event 4624 would **not** by itself prove remote code execution.
 - Target-side service-installation and process-creation evidence (for example, Events 4697/7045/4688 or relevant Sysmon records) has not yet been exported and remains a validation gap.
@@ -44,7 +44,7 @@ Both VMs used the VirtualBox internal network `intnet`; no bridged interface was
 ## Key skills demonstrated
 
 - Correctly distinguishing a **NetNTLMv2 challenge-response** from an NT password hash or reusable credential.
-- Recognizing the operator-noted causal chain while distinguishing it from independently verified evidence: reported poisoned name resolution, NTLM over HTTP, manual submission of a privileged credential, offline recovery, and credential reuse.
+- Recognizing the operator-noted causal chain while distinguishing it from independently verified evidence: reported poisoned name resolution, NTLM over HTTP, manual submission of a privileged credential, offline recovery, and credential reuse. The public derivatives do not independently establish the specific fallback-resolution protocol or the redacted recovery result.
 - Separating the failed SMB capture observation from Nmap's independent SMB-server-signing result and avoiding unsupported causality.
 - Treating a verified Event 4624 Logon Type 3 as proof of successful network authentication—not proof of code execution—while keeping the current transcription explicitly pending raw-export verification.
 - Keeping attacker-side tool output separate from target-side confirmation.

@@ -1,4 +1,4 @@
-# Incident Report: LLMNR Poisoning, Credential Submission, and Suspected Remote Service Activity
+# Incident Report: Reported Fallback Name-Resolution Poisoning, Credential Submission, and Suspected Remote Service Activity
 
 **Classification:** Simulated incident in an authorized, isolated home lab
 
@@ -14,19 +14,19 @@
 
 ## 1. Executive Summary
 
-This lab exercised a multi-stage intrusion scenario against `DC01` (`10.10.10.10`) from the authorized attacker VM `10.10.10.20`. Screenshots directly show Nmap reconnaissance, an attempted Responder listener, a browser at the synthetic hostname, a Windows Security prompt, and a later NetNTLMv2 challenge-response capture. Operator notes attribute the browser redirection to Responder answering a poisoned name-resolution request, but no raw Responder log or PCAP independently verifies that causal step. The notes also state that the domain Administrator credential was manually entered and submitted in the prompt; the prompt screenshot shows a redacted username field and an empty password field, so it does not independently prove entry or submission. The captured challenge-response was tested offline in the lab, and the recovered lab credential was subsequently used with Impacket remote-administration tooling.
+This lab exercised a multi-stage intrusion scenario against `DC01` (`10.10.10.10`) from the authorized attacker VM `10.10.10.20`. Screenshots directly show Nmap reconnaissance, an attempted Responder listener, a browser at the synthetic hostname, a Windows Security prompt, and later Responder HTTP NetNTLMv2 client/username output with the challenge-response region redacted. Operator notes attribute the browser redirection to Responder answering a poisoned LLMNR request, but no raw Responder log or PCAP independently verifies poisoning or distinguishes LLMNR from NBT-NS, DNS, or another resolution path. The notes also state that the domain Administrator credential was manually entered and submitted in the prompt; the prompt screenshot shows a redacted username field and an empty password field, so it does not independently prove entry or submission. Operator notes state that the challenge-response was recovered offline and that the recovered lab credential was subsequently used with Impacket remote-administration tooling; the public John screenshot shows one NetNTLMv2 input loaded but redacts all result lines.
 
 The evidence currently in this repository supports these conclusions:
 
 1. **Reconnaissance occurred.** Nmap output is visible in screenshots.
 2. **The capture path required user action according to operator notes.** The notes attribute redirection to LLMNR poisoning and the capture to manual submission at an untrusted NTLM-over-HTTP prompt; the current screenshots do not independently prove either the poisoning/redirection or the password entry/submission.
-3. **A NetNTLMv2 challenge-response was captured and tested offline.** The sensitive response and recovered plaintext are redacted.
+3. **Responder and John activity is partially evidenced.** Responder visibly reports an HTTP NetNTLMv2 client and username, and John visibly loads one NetNTLMv2 input. The challenge-response and all John result lines are redacted; capture of the exact material and successful recovery remain supported by operator notes rather than independently verifiable public evidence.
 4. **Privileged network authentication is reported but not yet independently verified.** The lab notes/transcribed Windows Security Event 4624, Logon Type 3, report `Administrator` authenticating from `10.10.10.20`; the raw event export is pending.
 5. **Remote service execution remains suspected, not target-confirmed.** Attacker-side Impacket/PsExec output reports share access and Service Control Manager operations, but target-side service-installation and process-creation records have not been exported.
 
-**Impact assessment:** In a production environment, reported disclosure and reuse of a privileged domain credential against a domain controller warrants critical handling. The lab notes and transcribed Event 4624 report privileged network authentication, pending verification against the raw event export. The present repository does not independently confirm that authentication, process execution, or persistence on the target.
+**Impact assessment:** In a production environment, reported disclosure and reuse of a privileged domain credential against a domain controller warrants urgent containment and potentially critical handling. The lab notes and transcribed Event 4624 report privileged network authentication, pending verification against the raw event export. The present repository does not independently confirm successful password recovery, credential reuse, target authentication, process execution, or persistence.
 
-**Root cause and contributing conditions:** This was not caused by LLMNR alone. According to operator notes, the HTTP chain required (a) legacy/fallback name resolution that could be poisoned, (b) NTLM authentication over HTTP to an untrusted destination, (c) manual submission of credentials at the browser prompt, (d) use of a highly privileged account, and (e) a lab password recoverable with the prepared wordlist. The earlier SMB path produced no captured credential material, but the available artifacts do not determine why. Nmap independently reported SMB signing enabled and required on DC01 in its SMB-server role. Requiring server signing mitigates relay to that SMB server; it does not establish the target's outbound/client signing behavior and must not be presented as the cause of the failed capture.
+**Root cause and contributing conditions:** This was not caused by a fallback name-resolution protocol alone. According to operator notes, the HTTP chain required (a) fallback name resolution that could be poisoned, (b) NTLM authentication over HTTP to an untrusted destination, (c) manual submission of credentials at the browser prompt, (d) use of a highly privileged account, and (e) a lab password present in the prepared wordlist. The evidence does not identify LLMNR versus NBT-NS or another lookup path. The earlier SMB path produced no captured credential material, but the available artifacts do not determine why. Nmap independently reported SMB signing enabled and required on DC01 in its SMB-server role. Requiring server signing mitigates relay to that SMB server; it does not establish the target's outbound/client signing behavior and must not be presented as the cause of the failed capture.
 
 ---
 
@@ -39,8 +39,8 @@ The artifacts display mixed 12-hour and 24-hour timestamps. The recon screenshot
 | `22:49:48` | Nmap-related Suricata signature | Transcribed; raw `fast.log`/`eve.json` pending export |
 | `22:50:51` | Malformed SMB dialect signature during failed SMB path | Transcribed; raw Suricata export pending |
 | `12:35–12:53 PM` | NTLM-over-HTTP-related signatures | Transcribed summary; raw Suricata export pending |
-| `12:47:58 PM` | Responder reports HTTP NetNTLMv2 challenge-response capture for `JTWYMAN\Administrator` | Screenshot; response redacted; raw Responder log pending |
-| `12:53 PM` | John reports successful offline recovery against the prepared wordlist | Screenshot; plaintext redacted |
+| `12:47:58 PM` | Responder visibly reports HTTP activity plus a NetNTLMv2 client/username for `JTWYMAN\Administrator`; operator notes report challenge-response capture | Response region redacted; raw Responder log pending |
+| `12:53 PM` | Operator notes report successful offline recovery against the prepared wordlist | Screenshot visibly proves only that John loaded one NetNTLMv2 input; all result lines are redacted |
 | `12:53:53 PM` | `ET INFO Suspected Impacket WMIExec Activity` | Transcribed; signature is not proof of a specific Impacket script or target execution |
 | `12:57:36 PM` | Security Event 4624, Logon Type 3, `Administrator`, source `10.10.10.20` | Transcribed endpoint event; raw `.evtx` pending |
 
@@ -61,7 +61,7 @@ The report notes the following Suricata signatures from the lab notes:
 - `ET INFO NTLM Session Setup Request - Auth`
 - `[1:2043996:1] ET INFO Suspected Impacket WMIExec Activity`
 
-These strings are useful investigation leads, but the repository currently contains neither `fast.log` nor `eve.json`; exact alert counts, packet fields, ordering, and correlation are therefore pending verification. The rule name `Suspected Impacket WMIExec Activity` should not be treated as proof that `wmiexec` ran. Tool-family signatures can match shared SMB/DCERPC behavior.
+These strings are useful investigation leads, but the repository currently contains neither `fast.log` nor `eve.json`; exact alert counts, packet fields, ordering, and correlation are therefore pending verification. The transcribed rule name `NTLMv1 Session Setup Response - Challenge` does not by itself establish the negotiated NTLM response version or contradict Responder's separate NetNTLMv2 label; that determination requires the raw alert/packet fields. Likewise, `Suspected Impacket WMIExec Activity` should not be treated as proof that `wmiexec` ran. Tool-family signatures can match shared SMB/DCERPC behavior.
 
 A reasonable triage hypothesis is that reconnaissance, repeated NTLM-over-HTTP observations, and an Impacket-family signature from the same lab source are related. Confirming that hypothesis requires the raw alert records and packet/flow identifiers.
 
@@ -73,11 +73,11 @@ A reasonable triage hypothesis is that reconnaissance, repeated NTLM-over-HTTP o
 
 Nmap screenshots show scanning against DC01 and report SMB signing as enabled and required. This is direct attacker-console evidence of reconnaissance and configuration discovery in the isolated lab.
 
-### 4.2 Name-Resolution Poisoning and Manual Credential Submission
+### 4.2 Reported Name-Resolution Poisoning and Manual Credential Submission
 
 The screenshots show a Responder launch attempt on the attacker VM followed by socket/network-unreachable errors. The failed SMB path produced poisoned-name-resolution responses according to the notes, but no captured credential material. The cause remains undetermined because no PCAP or raw Responder session log is available. Separately, Nmap reported that DC01 required signing while acting as an SMB server. That server-side setting mitigates relay to DC01; it neither proves why a fake-SMB capture failed nor establishes DC01's signing behavior for outbound SMB when acting as a client.
 
-The successful lab path used Responder's HTTP listener. A browser on DC01 navigated to a poisoned hostname and displayed a Windows Security credential prompt. The operator notes state that the domain Administrator credential was **manually entered and submitted**. [`08_dc01_username_redacted_password_not_shown.png`](evidence/screenshots/08_dc01_username_redacted_password_not_shown.png) shows a redacted username field and an empty password field; it does not independently demonstrate password entry or submission. After the noted action, Responder reported:
+According to operator notes, the working lab path used Responder's HTTP listener and name-resolution poisoning; the repository cannot establish whether LLMNR, NBT-NS, DNS, or another lookup path supplied the destination. A browser on DC01 displayed the synthetic hostname and a Windows Security credential prompt. The operator notes state that the domain Administrator credential was **manually entered and submitted**. [`08_dc01_username_redacted_password_not_shown.png`](evidence/screenshots/08_dc01_username_redacted_password_not_shown.png) shows a redacted username field and an empty password field; it does not independently demonstrate password entry or submission. After the noted action, the notes transcribe the following Responder output; the public screenshot retains the client and username lines while the response region is redacted:
 
 ```text
 [HTTP] NetNTLMv2 Client             : 10.10.10.10
@@ -89,11 +89,11 @@ The resulting material is a **NetNTLMv2 challenge-response**, not the account's 
 
 ### 4.3 Offline Credential Recovery
 
-John the Ripper was run with its `netntlmv2` input format against a small, purpose-built lab wordlist. The screenshot reports one recovered credential; the plaintext and wordlist values are redacted. The fast result demonstrates that the known lab password appeared in the prepared candidate set. It does not support a general claim about cracking speed or real-world password strength.
+John the Ripper was run with its `netntlmv2` input format against a small, purpose-built lab wordlist. The public screenshot visibly shows one NetNTLMv2 input loaded, but all result/status lines, plaintext, and candidate values are redacted. Operator notes report one successful recovery and state that the known lab password appeared in the prepared candidate set; that result is not independently verifiable from the derivative and does not support a general claim about cracking speed or real-world password strength.
 
 ### 4.4 Credential Reuse and Suspected Remote Service Activity
 
-The recovered lab credential was used first with an Impacket WMIExec-style client, which appeared to hang and was abandoned. It was then used with Impacket PsExec-style tooling. Credential-bearing command lines are intentionally omitted.
+Operator notes state that the recovered lab credential was used first with an Impacket WMIExec-style client, which appeared to hang and was abandoned, and then with Impacket PsExec-style tooling. The redacted screenshots do not independently identify either invocation or expose the credential-bearing command lines; the later client-reported service workflow is consistent with PsExec-style behavior.
 
 Attacker-side output reports:
 
@@ -126,7 +126,7 @@ Target-side validation sought for execution includes Security Event 4697, System
 
 ## 5. Severity and Response
 
-**Severity recommendation: Critical in a production analogue.** The screenshots support capture and offline recovery of privileged credential material, while the lab notes/transcribed Event 4624 report successful network authentication to a domain controller pending raw-export verification. Even with authentication awaiting independent verification and execution unconfirmed, the reported access path justifies immediate containment.
+**Severity recommendation: High based on the public evidence; Critical if privileged credential recovery/reuse is verified.** The screenshots support an HTTP NetNTLMv2 exchange and one offline input load, while successful recovery, target authentication, and remote service activity depend partly on operator notes, redacted client output, and a transcribed Event 4624 pending raw-export verification. The reported access path still justifies immediate containment in a production analogue.
 
 **Immediate actions:**
 
@@ -152,9 +152,9 @@ Target-side validation sought for execution includes Security Event 4697, System
 | Tactic | Technique | ID | Evidence status |
 |---|---|---|---|
 | Reconnaissance | Active Scanning | T1595 | Nmap screenshot |
-| Credential Access | Adversary-in-the-Middle: LLMNR/NBT-NS Poisoning and SMB Relay (name-resolution-poisoning portion only) | T1557.001 | Operator notes attribute redirection to name-resolution poisoning; packet-level or raw-log verification is unavailable. The manual HTTP prompt/submission is separate causal context from operator notes, not part of the technique mapping. |
-| Credential Access | Brute Force: Password Cracking | T1110.002 | John screenshot; sensitive result redacted |
-| Lateral Movement | Remote Services: SMB/Windows Admin Shares | T1021.002 | Attacker-side PsExec-style output; target confirmation pending |
+| Credential Access | Adversary-in-the-Middle: LLMNR/NBT-NS Poisoning and SMB Relay (name-resolution-poisoning portion only) | T1557.001 | Operator notes attribute redirection to poisoning, but the repository cannot distinguish LLMNR, NBT-NS, DNS, or another resolution path; packet-level or raw-log verification is unavailable. The manual HTTP prompt/submission is separate causal context from operator notes, not part of the technique mapping. |
+| Credential Access | Brute Force: Password Cracking | T1110.002 | John command and one loaded NetNTLMv2 input are visible; successful recovery is operator-noted because all result lines are redacted |
+| Lateral Movement | Remote Services: SMB/Windows Admin Shares | T1021.002 | Attacker-side service-workflow output is consistent with PsExec-style behavior; tool identity and target confirmation are pending |
 | Execution | System Services: Service Execution | T1569.002 | **Hypothesis only** until target service/process evidence is collected |
 
 ---
@@ -184,4 +184,4 @@ Target-side validation sought for execution includes Security Event 4697, System
 
 ## 8. Conclusion
 
-The lab demonstrates a plausible credential-compromise chain but also shows why precise evidence language matters. Operator notes attribute redirection to LLMNR poisoning, but the repository lacks the PCAP or raw Responder log needed to verify that step independently. The screenshots support an NTLM-over-HTTP challenge-response exchange; operator notes attribute the capture to manual submission of a privileged credential; and the prepared wordlist enabled offline recovery. The lab notes/transcribed Event 4624 report that the credential then produced a successful network authentication, but the raw event export is still required to verify that claim. Attacker-side PsExec-style output suggests remote service operations, but target-side service and process evidence is still required before claiming remote code execution.
+The lab demonstrates a plausible credential-compromise chain but also shows why precise evidence language matters. Operator notes attribute redirection to LLMNR poisoning, but the repository lacks the PCAP or raw Responder log needed to verify poisoning or distinguish LLMNR from NBT-NS, DNS, or another resolution path. The screenshots support an NTLM-over-HTTP exchange and show John loading one NetNTLMv2 input; operator notes attribute the exchange to manual submission of a privileged credential and report successful offline recovery. The lab notes/transcribed Event 4624 then report successful network authentication, but the raw event export is still required to verify that claim. Attacker-side output is consistent with PsExec-style remote service operations, but the invocation is redacted and target-side service/process evidence is still required before claiming remote code execution.
