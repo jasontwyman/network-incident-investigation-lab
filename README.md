@@ -1,6 +1,13 @@
 # Network Incident Investigation Lab
 
-A hands-on incident-response exercise conducted in an **authorized, isolated VirtualBox lab**. The project is organized as an investigation narrative: generate activity, review available alerts and host artifacts, identify what each artifact does and does not prove, document evidence gaps, and recommend containment and validation steps.
+A hands-on incident-response exercise conducted in an **authorized, isolated VirtualBox lab**.
+The project follows an Active Directory attack narrative from reconnaissance and NTLM
+authentication activity through attempted remote administration, then converts the available
+artifacts into a structured incident report with containment and validation recommendations.
+
+The completed portfolio package includes an incident report, an 18-image sanitized evidence
+manifest, MITRE-relevant investigation context, and explicit separation between observations,
+analyst interpretation, attacker-side output, and target-side confirmation.
 
 ## What this repository demonstrates
 
